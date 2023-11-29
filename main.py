@@ -22,7 +22,7 @@ df_results = pd.read_sql(sql_query, conn)
 
 #SELECT TEAM
 team = st.sidebar.selectbox('Select a team', df_teams['team_id'].drop_duplicates())
-selected_team_name = df_teams[df_teams['team_id'] == team]['team_name'].iloc[0]
+selected_team_name = list(df_teams[df_teams['team_id'] == team]['team_name'])
 
 #SELECT HOST
 host = st.sidebar.selectbox('Select where team is playng', ['Home', 'Away', 'Both'])
@@ -77,15 +77,15 @@ year = st.sidebar.slider('Select a range of seasons', years[0],
 
 #SELECT DATA TO BE DISPLAYED BY PLOTLY CHART
 if host == 'Home':
-    team_data = df_results[df_results['team_home'] == selected_team_name]
+    team_data = df_results[df_results['team_home'].isin(selected_team_name)]
     team_data['Performance'] = team_data['score_home'] - team_data['score_away']
 elif host == 'Away':
-    team_data = df_results[df_results['team_away'] == 'Atlanta Falcons']
+    team_data = df_results[df_results['team_away'].isin(selected_team_name)]
     team_data['Performance'] = team_data['score_away'] - team_data['score_home']
 elif host == 'Both':
-    team_home = df_results[df_results['team_home'] == 'Atlanta Falcons']
+    team_home = df_results[df_results['team_home'].isin(selected_team_name)]
     team_home['Performance'] = team_home['score_home'] - team_home['score_away']
-    team_away = df_results[df_results['team_away'] == 'Atlanta Falcons']
+    team_away = df_results[df_results['team_away'].isin(selected_team_name)]
     team_away['Performance'] = team_away['score_away'] - team_away['score_home']
     team_data = pd.concat([team_home, team_away], ignore_index=True)
 
