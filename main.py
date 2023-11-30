@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import sqlite3
-from datetime import datetime
 
 #STREAMLIT TITLES
 st.title("NFL Data visualization")
@@ -21,7 +20,7 @@ sql_query = "SELECT * FROM RESULTS"
 df_results = pd.read_sql(sql_query, conn)
 
 #SELECT TEAM
-team = st.sidebar.selectbox('Select a team', df_teams['team_id'].drop_duplicates())
+team = st.sidebar.selectbox('Select a team', sorted(list(df_teams['team_id'].drop_duplicates())))
 selected_team_name = list(df_teams[df_teams['team_id'] == team]['team_name'])
 
 #SELECT HOST
