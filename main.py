@@ -41,29 +41,29 @@ stadium_surface = st.sidebar.selectbox('Select a stadium surface', stadium_surfa
 stadium_capacities = sorted(df_stadiums['stadium_capacity'].unique())
 stadium_capacity = st.sidebar.slider('Select a stadium capacity range', min_value=int(stadium_capacities[0]), 
                                      max_value=int(stadium_capacities[-1]), 
-                                     value=(int(stadium_capacities[int(len(stadium_capacities)*0.25)]), 
-                                            int(stadium_capacities[int(len(stadium_capacities)*0.75)])))
+                                     value=(int(stadium_capacities[int(len(stadium_capacities)*0.10)]), 
+                                            int(stadium_capacities[int(len(stadium_capacities)*0.90)])))
 
 # WEATHER TEMPERATURE SLIDER
 weather_temps = sorted(df_results['weather_temperature'].dropna().unique())
 temperature = st.sidebar.slider('Select a temperature range in degrees fahrenheit', min_value=int(weather_temps[0]), 
                                      max_value=int(weather_temps[-1]), 
-                                     value=(int(weather_temps[int(len(weather_temps)*0.25)]), 
-                                            int(weather_temps[int(len(weather_temps)*0.75)])), step=1)
+                                     value=(int(weather_temps[int(len(weather_temps)*0.10)]), 
+                                            int(weather_temps[int(len(weather_temps)*0.90)])), step=1)
 
 # WEATHER WIND SLIDER
 wind_speeds = sorted(df_results['weather_wind_mph'].dropna().unique())
 wind_speed = st.sidebar.slider('Select a wind speed range in mph', min_value=int(wind_speeds[0]), 
                                      max_value=int(wind_speeds[-1]), 
-                                     value=(int(wind_speeds[int(len(wind_speeds)*0.25)]), 
-                                            int(wind_speeds[int(len(wind_speeds)*0.75)])), step=1)
+                                     value=(int(wind_speeds[int(len(wind_speeds)*0.10)]), 
+                                            int(wind_speeds[int(len(wind_speeds)*0.90)])), step=1)
 
 # WEATHER HUMIDITY SLIDER
 weather_humidity = sorted(df_results['weather_humidity'].dropna().unique())
 humidity = st.sidebar.slider('Select a humidity range', min_value=int(weather_humidity[0]), 
                                      max_value=int(weather_humidity[-1]), 
-                                     value=(int(weather_humidity[int(len(weather_humidity)*0.25)]), 
-                                            int(weather_humidity[int(len(weather_humidity)*0.75)])), step=1)
+                                     value=(int(weather_humidity[int(len(weather_humidity)*0.10)]), 
+                                            int(weather_humidity[int(len(weather_humidity)*0.90)])), step=1)
 
 # YEAR SLIDER
 years = sorted(df_results['schedule_season'].dropna().unique())
@@ -101,12 +101,8 @@ team_data['schedule_date'] = pd.to_datetime(team_data['schedule_date'], format='
 team_data['schedule_date'] = team_data['schedule_date'].dt.date 
 team_data = team_data.sort_values(by='schedule_date')
 
-# DISPLAY DATA
-display_data = pd.DataFrame()
-display_data['Date'] = team_data['schedule_date']
-display_data['Performance'] = team_data['Performance']
-
-fig = px.bar(display_data, x='Date', y='Performance')
+# DISPLAYING DATA
+fig = px.bar(team_data, x='schedule_date', y='Performance')
 st.plotly_chart(fig, use_container_width=True)
 
 conn.close()  # SHOULD BE LAST LINE OF THE PROGRAM, SO WE CAN MAKE DYNAMIC QUERYING
