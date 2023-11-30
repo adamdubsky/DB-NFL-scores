@@ -4,15 +4,18 @@ import plotly.express as px
 import sqlite3
 from datetime import datetime
 
-#STREAMLIT TITLES
+# STREAMLIT TITLES
 st.title("NFL Data visualization")
 st.sidebar.title("Select features to display")
 
-#INITIALLY BRING FULL DATABASE INTO PROGRAM THROUGH PANDAS
+# INITIALLY BRING FULL DATABASE INTO PROGRAM THROUGH PANDAS
 conn = sqlite3.connect("database.db")
 
 sql_query = "SELECT * FROM STADIUMS"
 df_stadiums = pd.read_sql(sql_query, conn)
+
+# Handle non-numeric values and None in stadium_capacity
+df_stadiums['stadium_capacity'] = pd.to_numeric(df_stadiums['stadium_capacity'].str.replace(',', ''), errors='coerce').fillna(0).astype(int)
 
 sql_query = "SELECT * FROM TEAMS"
 df_teams = pd.read_sql(sql_query, conn)
@@ -20,81 +23,86 @@ df_teams = pd.read_sql(sql_query, conn)
 sql_query = "SELECT * FROM RESULTS"
 df_results = pd.read_sql(sql_query, conn)
 
-#SELECT TEAM
+# SELECT TEAM
 team = st.sidebar.selectbox('Select a team', df_teams['team_id'].drop_duplicates())
 selected_team_name = list(df_teams[df_teams['team_id'] == team]['team_name'])
 
-#SELECT HOST
-host = st.sidebar.selectbox('Select where team is playng', ['Home', 'Away', 'Both'])
+# SELECT HOST
+host = st.sidebar.selectbox('Select where team is playing', ['Home', 'Away', 'Both'])
 
-#SELECT STADIUM TYPE
-stadium_type = st.sidebar.selectbox('Select a stadium type', df_stadiums['stadium_type'].dropna().unique())
+# SELECT STADIUM TYPE WITH 'ANY' OPTION
+stadium_type_options = ['Any'] + list(df_stadiums['stadium_type'].dropna().unique())
+stadium_type = st.sidebar.selectbox('Select a stadium type', stadium_type_options)
 
-#SELECT STADIUM SURFACE
-stadium_surface = st.sidebar.selectbox('Select a stadium surface', df_stadiums['stadium_surface'].dropna().unique())
+# SELECT STADIUM SURFACE WITH 'ANY' OPTION
+stadium_surface_options = ['Any'] + list(df_stadiums['stadium_surface'].dropna().unique())
+stadium_surface = st.sidebar.selectbox('Select a stadium surface', stadium_surface_options)
 
-#STADIUM CAPACITIES SLIDER
-stadium_capacities = sorted(list(df_stadiums['stadium_capacity'].dropna()))
-stadium_capacities = [int(s.replace(',', '')) for s in stadium_capacities]
-stadium_capacity = st.sidebar.slider('Select a stadium capacity range', stadium_capacities[0], 
-                                     stadium_capacities[len(stadium_capacities)-1], 
-                                     (stadium_capacities[int(len(stadium_capacities)*0.25)], 
-                                      stadium_capacities[int(len(stadium_capacities)*0.75)]))
+# STADIUM CAPACITIES SLIDER
+stadium_capacities = sorted(df_stadiums['stadium_capacity'].unique())
+stadium_capacity = st.sidebar.slider('Select a stadium capacity range', min_value=int(stadium_capacities[0]), 
+                                     max_value=int(stadium_capacities[-1]), 
+                                     value=(int(stadium_capacities[int(len(stadium_capacities)*0.25)]), 
+                                            int(stadium_capacities[int(len(stadium_capacities)*0.75)])))
 
-#WEATHER TEMPERATURE SLIDER
-weather_temps = sorted(list(df_results['weather_temperature'].dropna()))
-temperature = st.sidebar.slider('Select a temperature range in degrees fahrenheit', weather_temps[0], 
-                                     weather_temps[len(weather_temps)-1], 
-                                     (weather_temps[int(len(weather_temps)*0.25)], 
-                                      weather_temps[int(len(weather_temps)*0.75)]), step=1.0)
+# WEATHER TEMPERATURE SLIDER
+weather_temps = sorted(df_results['weather_temperature'].dropna().unique())
+temperature = st.sidebar.slider('Select a temperature range in degrees fahrenheit', min_value=int(weather_temps[0]), 
+                                     max_value=int(weather_temps[-1]), 
+                                     value=(int(weather_temps[int(len(weather_temps)*0.25)]), 
+                                            int(weather_temps[int(len(weather_temps)*0.75)])), step=1)
 
-#WEATHER WIND SLIDER
-wind_speeds = sorted(list(df_results['weather_wind_mph'].dropna()))
-wind_speed = st.sidebar.slider('Select a wind speed range in mph', wind_speeds[0], 
-                                     wind_speeds[len(wind_speeds)-1], 
-                                     (wind_speeds[int(len(wind_speeds)*0.25)], 
-                                      wind_speeds[int(len(wind_speeds)*0.75)]), step=1.0)
+# WEATHER WIND SLIDER
+wind_speeds = sorted(df_results['weather_wind_mph'].dropna().unique())
+wind_speed = st.sidebar.slider('Select a wind speed range in mph', min_value=int(wind_speeds[0]), 
+                                     max_value=int(wind_speeds[-1]), 
+                                     value=(int(wind_speeds[int(len(wind_speeds)*0.25)]), 
+                                            int(wind_speeds[int(len(wind_speeds)*0.75)])), step=1)
 
-#WEATHER HUMIDITY
-weather_humidity = sorted(list(df_results['weather_humidity'].dropna()))
-humidity = st.sidebar.slider('Select a humidity range', weather_humidity[0], 
-                                     weather_humidity[len(weather_humidity)-1], 
-                                     (weather_humidity[int(len(weather_humidity)*0.25)], 
-                                      weather_humidity[int(len(weather_humidity)*0.75)]), step=1.0)
+# WEATHER HUMIDITY SLIDER
+weather_humidity = sorted(df_results['weather_humidity'].dropna().unique())
+humidity = st.sidebar.slider('Select a humidity range', min_value=int(weather_humidity[0]), 
+                                     max_value=int(weather_humidity[-1]), 
+                                     value=(int(weather_humidity[int(len(weather_humidity)*0.25)]), 
+                                            int(weather_humidity[int(len(weather_humidity)*0.75)])), step=1)
 
-#YEAR SLIDER
-years = sorted(list(df_results['schedule_season'].dropna()))
-year = st.sidebar.slider('Select a range of seasons', years[0], 
-                                     years[len(years)-1], 
-                                     (years[0], 
-                                      years[len(years)-1]), step=1)
-
-# THIS NEEDS TO BE DINAMICALLY DONE
-# user can select a team id. A team id gets data from all possible variants of this team
-# ex: WAS gets data from Washington Redskins, Washington Commanders etc.
-# Team (and other data) should be passed according to user selection dinamically insetad of just arbitraly inputing the Falcons
-# This should probably be easier to do in SQL than pandas, and this could be the whole SQL part of our project
+# YEAR SLIDER
+years = sorted(df_results['schedule_season'].dropna().unique())
+year = st.sidebar.slider('Select a range of seasons', min_value=int(years[0]), 
+                                     max_value=int(years[-1]), 
+                                     value=(int(years[0]), 
+                                            int(years[-1])), step=1)
 
 #SELECT DATA TO BE DISPLAYED BY PLOTLY CHART
 if host == 'Home':
     team_data = df_results[df_results['team_home'].isin(selected_team_name)]
-    team_data['Performance'] = team_data['score_home'] - team_data['score_away']
 elif host == 'Away':
     team_data = df_results[df_results['team_away'].isin(selected_team_name)]
-    team_data['Performance'] = team_data['score_away'] - team_data['score_home']
 elif host == 'Both':
     team_home = df_results[df_results['team_home'].isin(selected_team_name)]
-    team_home['Performance'] = team_home['score_home'] - team_home['score_away']
     team_away = df_results[df_results['team_away'].isin(selected_team_name)]
-    team_away['Performance'] = team_away['score_away'] - team_away['score_home']
     team_data = pd.concat([team_home, team_away], ignore_index=True)
 
-#SORT BY DATE
+# APPLY FILTERS
+team_data = team_data.join(df_stadiums.set_index('stadium_name'), on='stadium')
+team_data = team_data[
+    ((stadium_type == 'Any') | (team_data['stadium_type'] == stadium_type)) &
+    ((stadium_surface == 'Any') | (team_data['stadium_surface'] == stadium_surface)) &
+    (team_data['stadium_capacity'].between(*stadium_capacity)) &
+    (team_data['weather_temperature'].between(*temperature)) &
+    (team_data['weather_wind_mph'].between(*wind_speed)) &
+    (team_data['weather_humidity'].between(*humidity)) &
+    (team_data['schedule_season'].between(*year))
+]
+
+team_data['Performance'] = team_data.apply(lambda row: row['score_home'] - row['score_away'] if row['team_home'] in selected_team_name else row['score_away'] - row['score_home'], axis=1)
+
+# SORT BY DATE
 team_data['schedule_date'] = pd.to_datetime(team_data['schedule_date'], format='%m/%d/%Y')
 team_data['schedule_date'] = team_data['schedule_date'].dt.date 
 team_data = team_data.sort_values(by='schedule_date')
 
-#DISPLAY DATA
+# DISPLAY DATA
 display_data = pd.DataFrame()
 display_data['Date'] = team_data['schedule_date']
 display_data['Performance'] = team_data['Performance']
@@ -102,4 +110,4 @@ display_data['Performance'] = team_data['Performance']
 fig = px.bar(display_data, x='Date', y='Performance')
 st.plotly_chart(fig, use_container_width=True)
 
-conn.close() #SHOULD BE LAST LINE OF THE PROGRAM, SO WE CAN MAKE DYNAMIC QUERYING
+conn.close()  # SHOULD BE LAST LINE OF THE PROGRAM, SO WE CAN MAKE DYNAMIC QUERYING
