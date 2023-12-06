@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import sqlite3
 import warnings
+from sklearn.linear_model import LinearRegression
 warnings.filterwarnings("ignore")
 
 # STREAMLIT TITLES
@@ -29,7 +30,6 @@ WHERE stadium_capacity IS NULL;
 # A LOT OF THE 'stadium_capacity' COLUMN WAS SET AS NULL, SO JUST CONSIDERED THIS AS 0
 cursor.execute(update_query)
 conn.commit()
-
 
 # LOAD STADIUMS DATA AND HANDLE 'stadium_capacity'
 df_stadiums = pd.read_sql("SELECT * FROM STADIUMS", conn)
@@ -71,13 +71,23 @@ year = st.sidebar.slider('Select a Range of Seasons', min_value=int(years[0]),
 
 # PREPARE SQL QUERY BASED ON USER SELECTION
 where_conditions = []
-if host == 'Home':
-    where_conditions.append(f"team_home IN {tuple(selected_team_name)}")
-elif host == 'Away':
-    where_conditions.append(f"team_away IN {tuple(selected_team_name)}")
-elif host == 'Both':
-    team_condition = f"(team_home IN {tuple(selected_team_name)} OR team_away IN {tuple(selected_team_name)})"
-    where_conditions.append(team_condition)
+
+if len(selected_team_name) > 1:
+    if host == 'Home':
+        where_conditions.append(f"team_home IN {tuple(selected_team_name)}")
+    elif host == 'Away':
+        where_conditions.append(f"team_away IN {tuple(selected_team_name)}")
+    elif host == 'Both':
+        team_condition = f"(team_home IN {tuple(selected_team_name)} OR team_away IN {tuple(selected_team_name)})"
+        where_conditions.append(team_condition)
+else:
+    if host == 'Home':
+        where_conditions.append(f"team_home = '{selected_team_name[0]}'")
+    elif host == 'Away':
+        where_conditions.append(f"team_away = '{selected_team_name[0]}'")
+    elif host == 'Both':
+        team_condition = f"(team_home = '{selected_team_name[0]}' OR team_away = '{selected_team_name[0]}')"
+        where_conditions.append(team_condition)
 
 if stadium_type != 'Any':
     where_conditions.append(f"stadium_type = '{stadium_type}'")
@@ -138,5 +148,32 @@ st.plotly_chart(fig, use_container_width=True)
 st.divider()
 st.write("Dataframe with Season by Season stats for use manipulation")
 st.dataframe(season_stats)
+st.divider()
 
+# SELECT OPPONENT FOR REGRESSION ANALYSIS
+opponent_options = []
+for opponent in list(df_teams['team_id']):
+    if opponent != team:
+        opponent_options.append(opponent)
+opponent = st.selectbox('Select an Opponent', sorted(set(opponent_options)))
+selected_opponent = list(df_teams[df_teams['team_id'] == opponent]['team_name'])
+
+#RERUN QUERY WITH ADDITION OF SELECTED OPPONENT
+if len(selected_opponent) > 1:
+    opponent_condition = f"(team_home IN {tuple(selected_opponent)} OR team_away IN {tuple(selected_opponent)})"
+else:
+    opponent_condition = f"(team_home = '{selected_opponent[0]}' OR team_away = '{selected_opponent[0]}')"
+where_conditions.append(opponent_condition)
+
+where_clause = " AND ".join(where_conditions)
+
+sql_query = f"""
+SELECT R.*, S.stadium_type, S.stadium_surface, S.stadium_capacity 
+FROM RESULTS R
+LEFT JOIN STADIUMS S ON R.stadium = S.stadium_name
+WHERE {where_clause};
+"""
+
+#REGRESSION ANALYSIS
+team_data = pd.read_sql(sql_query, conn)
 conn.close()
