@@ -132,7 +132,11 @@ st.plotly_chart(fig, use_container_width=True)
 
 # SEASON BY SEASON PERFORMANCE DISPLAY
 season_stats = team_data.groupby('schedule_season')['game_result'].value_counts().unstack(fill_value=0)
-season_stats['win_percentage'] = round((season_stats['win'] / season_stats[['win', 'loss']].sum(axis=1)) * 100, 2)
+
+try:
+    season_stats['win_percentage'] = round((season_stats['win'] / season_stats[['win', 'loss']].sum(axis=1)) * 100, 1)
+except KeyError:
+    season_stats['win_percentage'] = 0
 
 columns_to_select = ['win_percentage', 'win', 'loss', 'tie'] if 'tie' in season_stats.columns else ['win_percentage', 'win', 'loss']
 df_season = season_stats[columns_to_select].reset_index()
@@ -151,7 +155,7 @@ st.plotly_chart(fig, use_container_width=True)
 
 # DISPLAY DATAFRAME
 st.divider()
-st.write("Dataframe with Season by Season stats for use manipulation")
+st.write("Dataframe with Season by Season stats for user manipulation")
 st.dataframe(season_stats)
 st.divider()
 
@@ -197,33 +201,35 @@ df_regression = team_data[regression_columns].copy()
 #TARGET PERFORMANCE
 X = df_regression.drop('Performance', axis=1)
 y = df_regression['Performance']
+try:
+    #SPLIT TRAIN/TEST DATA
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=0)
 
-#SPLIT TRAIN/TEST DATA
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=0)
+    #SPLIT NUMERICAL AND CATEGORIC FEATURES
+    numeric_features = ['weather_temperature', 'weather_wind_mph', 'stadium_capacity']
+    categorical_features = ['stadium_type', 'stadium_surface']
 
-#SPLIT NUMERICAL AND CATEGORIC FEATURES
-numeric_features = ['weather_temperature', 'weather_wind_mph', 'stadium_capacity']
-categorical_features = ['stadium_type', 'stadium_surface']
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', 'passthrough', numeric_features),
+            ('cat', OneHotEncoder(), categorical_features)
+        ])
 
-preprocessor = ColumnTransformer(
-    transformers=[
-        ('num', 'passthrough', numeric_features),
-        ('cat', OneHotEncoder(), categorical_features)
-    ])
+    #APPLY REGRESSION MODEL
+    model = LinearRegression()
 
-#APPLY REGRESSION MODEL
-model = LinearRegression()
+    pipeline = Pipeline(steps=[('preprocessor', preprocessor),
+                                ('model', model)])
 
-pipeline = Pipeline(steps=[('preprocessor', preprocessor),
-                             ('model', model)])
+    pipeline.fit(X_train, y_train)
+    y_pred = pipeline.predict(X_test)
+    historic_prediction = round(sum(y_pred)/len(y_pred),2)
 
-pipeline.fit(X_train, y_train)
-y_pred = pipeline.predict(X_test)
-historic_prediction = round(sum(y_pred)/len(y_pred),2)
-
-if historic_prediction > 0:
-    st.write(f"With the user inputed data, it is estimated that the {selected_team_name[0]}, in the given conditions would beat the {selected_opponent[0]} by {historic_prediction} points.")
-else:
-    st.write(f"With the user inputed data, it is estimated that the {selected_team_name[0]}, in the given conditions would lose to the {selected_opponent[0]} by {historic_prediction} points.")
+    if historic_prediction > 0:
+        st.write(f"With the user inputed data, it is estimated that the {selected_team_name[0]}, in the given conditions would beat the {selected_opponent[0]} by {historic_prediction} points.")
+    else:
+        st.write(f"With the user inputed data, it is estimated that the {selected_team_name[0]}, in the given conditions would lose to the {selected_opponent[0]} by {np.abs(historic_prediction)} points.")
+except ValueError:
+    st.write("With the inputed values, we don't have enough data to perform a prediction. We apologize for the limitations of our model.")
 
 conn.close()
