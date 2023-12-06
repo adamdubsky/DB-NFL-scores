@@ -4,7 +4,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 import sqlite3
 import warnings
+import numpy as np
 from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 warnings.filterwarnings("ignore")
 
 # STREAMLIT TITLES
@@ -151,6 +156,8 @@ st.dataframe(season_stats)
 st.divider()
 
 # SELECT OPPONENT FOR REGRESSION ANALYSIS
+st.subheader("Estimate the outcome of a game given user inputs")
+
 opponent_options = []
 for opponent in list(df_teams['team_id']):
     if opponent != team:
@@ -174,6 +181,49 @@ LEFT JOIN STADIUMS S ON R.stadium = S.stadium_name
 WHERE {where_clause};
 """
 
-#REGRESSION ANALYSIS
+##############REGRESSION ANALYSIS##############
+
+#TREAT DATA
 team_data = pd.read_sql(sql_query, conn)
+team_data['Performance'] = team_data.apply(lambda row: row['score_home'] - row['score_away'] 
+                                           if row['team_home'] == selected_team_name 
+                                           else row['score_away'] - row['score_home'], axis=1)
+team_data['stadium_capacity'] = pd.to_numeric(team_data['stadium_capacity'].str.replace(',', ''), errors='coerce').fillna(0).astype(int)
+
+#SELEC USER INPUT FEATURES
+regression_columns = ['weather_temperature', 'weather_wind_mph', 'stadium_capacity', 'stadium_type', 'stadium_surface', 'Performance']
+df_regression = team_data[regression_columns].copy()
+
+#TARGET PERFORMANCE
+X = df_regression.drop('Performance', axis=1)
+y = df_regression['Performance']
+
+#SPLIT TRAIN/TEST DATA
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=0)
+
+#SPLIT NUMERICAL AND CATEGORIC FEATURES
+numeric_features = ['weather_temperature', 'weather_wind_mph', 'stadium_capacity']
+categorical_features = ['stadium_type', 'stadium_surface']
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', 'passthrough', numeric_features),
+        ('cat', OneHotEncoder(), categorical_features)
+    ])
+
+#APPLY REGRESSION MODEL
+model = LinearRegression()
+
+pipeline = Pipeline(steps=[('preprocessor', preprocessor),
+                             ('model', model)])
+
+pipeline.fit(X_train, y_train)
+y_pred = pipeline.predict(X_test)
+historic_prediction = round(sum(y_pred)/len(y_pred),2)
+
+if historic_prediction > 0:
+    st.write(f"With the user inputed data, it is estimated that the {selected_team_name[0]}, in the given conditions would beat the {selected_opponent[0]} by {historic_prediction} points.")
+else:
+    st.write(f"With the user inputed data, it is estimated that the {selected_team_name[0]}, in the given conditions would lose to the {selected_opponent[0]} by {historic_prediction} points.")
+
 conn.close()
